@@ -64,7 +64,11 @@ window.addEventListener("load", () => {
           }
         );
         // console.log(myPlacemark);
-
+        document
+          .querySelector(".button-delete")
+          .addEventListener("click", () => {
+            myMap.geoObjects.removeAll();
+          });
         // Контекстное меню, позволяющее изменить параметры метки.
         // Вызывается при нажатии правой кнопкой мыши на метке.
         // ($"#menu").click(function
@@ -156,7 +160,7 @@ window.addEventListener("load", () => {
           }
         });
         myMap.geoObjects.add(myPlacemark);
-        // myMap.geoObjects.add(myPlacemark);
+        // myMap.geoObjects.removeAll();
         // const asyncFunc = async () => {
         //   console.log("ROAD_1", ROAD_1, "ROAD_2", ROAD_2);
         //   const coords = [ROAD_2, ROAD_1];
