@@ -35,8 +35,12 @@ router.post("/", (req, res) => {
     }
   });
   console.log("sssss1", pointsReturn[0][1]);
-  if (true) {
-    pointsReturn.push(nearest_road_arrp);
+  console.log("sssss2", pointsReturn[1][1]);
+  if (
+    pointsReturn[0][1] === pointsReturn[1][1] &&
+    pointsReturn[0][1] !== "FF0000"
+  ) {
+    pointsReturn.push(nearest_road_arr);
   } else if (pointsReturn[0][1] < pointsReturn[1][1]) {
     console.log("1");
     pointsReturn.push(nearest_road_arr[0]);

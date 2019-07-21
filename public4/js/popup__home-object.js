@@ -16,14 +16,139 @@ window.addEventListener("load", () => {
       "map",
       {
         center: [48.756566, 44.510171],
-        zoom: 16
+        zoom: 16,
+        controls: ["geolocationControl", "searchControl"]
       },
+      (deliveryPoint = new ymaps.GeoObject({
+        geometry: { type: "Point" },
+        properties: { iconCaption: "Адрес" }
+      })),
       {
         searchControlProvider: "yandex#search",
         yandexMapDisablePoiInteractivity: true
       }
     );
 
+    searchControl = myMap.controls.get("searchControl");
+    searchControl.options.set({
+      noPlacemark: true,
+      placeholderContent: "Введите адрес доставки"
+    });
+    myMap.geoObjects.add(deliveryPoint);
+
+    searchControl = myMap.controls.get("searchControl");
+    searchControl.options.set({
+      noPlacemark: true,
+      placeholderContent: "Введите адрес доставки"
+    });
+    myMap.geoObjects.add(deliveryPoint);
+
+    function onZonesLoad(json) {
+      // Добавляем зоны на карту.
+      var deliveryZones = ymaps.geoQuery(json).addToMap(myMap);
+      // Задаём цвет и контент балунов полигонов.
+      deliveryZones.each(function(obj) {
+        var color = obj.options.get("fillColor");
+        color = color.substring(0, color.length - 2);
+        obj.options.set({ fillColor: color, fillOpacity: 0.4 });
+        obj.properties.set("balloonContent", obj.properties.get("name"));
+        obj.properties.set(
+          "balloonContentHeader",
+          "Стоимость доставки: " + obj.properties.get("price") + " р."
+        );
+      });
+
+      // Проверим попадание результата поиска в одну из зон доставки.
+      searchControl.events.add("resultshow", function(e) {
+        highlightResult(searchControl.getResultsArray()[e.get("index")]);
+      });
+
+      // Проверим попадание метки геолокации в одну из зон доставки.
+      myMap.controls
+        .get("geolocationControl")
+        .events.add("locationchange", function(e) {
+          highlightResult(e.get("geoObjects").get(0));
+        });
+
+      // При перемещении метки сбрасываем подпись, содержимое балуна и перекрашиваем метку.
+      deliveryPoint.events.add("dragstart", function() {
+        deliveryPoint.properties.set({ iconCaption: "", balloonContent: "" });
+        deliveryPoint.options.set("iconColor", "black");
+      });
+
+      // По окончании перемещения метки вызываем функцию выделения зоны доставки.
+      deliveryPoint.events.add("dragend", function() {
+        highlightResult(deliveryPoint);
+      });
+
+      function highlightResult(obj) {
+        // Сохраняем координаты переданного объекта.
+        var coords = obj.geometry.getCoordinates(),
+          // Находим полигон, в который входят переданные координаты.
+          polygon = deliveryZones.searchContaining(coords).get(0);
+
+        if (polygon) {
+          // Уменьшаем прозрачность всех полигонов, кроме того, в который входят переданные координаты.
+          deliveryZones.setOptions("fillOpacity", 0.4);
+          polygon.options.set("fillOpacity", 0.8);
+          // Перемещаем метку с подписью в переданные координаты и перекрашиваем её в цвет полигона.
+          deliveryPoint.geometry.setCoordinates(coords);
+          deliveryPoint.options.set(
+            "iconColor",
+            polygon.options.get("fillColor")
+          );
+          // Задаем подпись для метки.
+          if (typeof obj.getThoroughfare === "function") {
+            setData(obj);
+          } else {
+            // Если вы не хотите, чтобы при каждом перемещении метки отправлялся запрос к геокодеру,
+            // закомментируйте код ниже.
+            ymaps.geocode(coords, { results: 1 }).then(function(res) {
+              var obj = res.geoObjects.get(0);
+              setData(obj);
+            });
+          }
+        } else {
+          // Если переданные координаты не попадают в полигон, то задаём стандартную прозрачность полигонов.
+          deliveryZones.setOptions("fillOpacity", 0.4);
+          // Перемещаем метку по переданным координатам.
+          deliveryPoint.geometry.setCoordinates(coords);
+          // Задаём контент балуна и метки.
+          deliveryPoint.properties.set({
+            iconCaption: "Доставка транспортной компанией",
+            balloonContent: "Cвяжитесь с оператором",
+            balloonContentHeader: ""
+          });
+          // Перекрашиваем метку в чёрный цвет.
+          deliveryPoint.options.set("iconColor", "black");
+        }
+
+        function setData(obj) {
+          var address = [
+            obj.getThoroughfare(),
+            obj.getPremiseNumber(),
+            obj.getPremise()
+          ].join(" ");
+          if (address.trim() === "") {
+            address = obj.getAddressLine();
+          }
+          deliveryPoint.properties.set({
+            iconCaption: address,
+            balloonContent: address,
+            balloonContentHeader:
+              "<b>Стоимость доставки: " +
+              polygon.properties.get("price") +
+              " р.</b>"
+          });
+        }
+      }
+    }
+
+    $.ajax({
+      url: "js/data.json",
+      dataType: "json",
+      success: onZonesLoad
+    });
     let myCoords = null;
     myMap.events.add("click", e => {
       var coords = e.get("coords");
@@ -85,7 +210,6 @@ window.addEventListener("load", () => {
                                 <div class="menu__item">
                                   <label for="nameObject" class="menu__item-name">Введите название объекта</label>
                                   <input id="nameObject" type="text" class="menu__item-input" />
-
                                   <label for="carsObject" class="menu__item-name">Машины в ед. вр.</label>
                                   <input id="carsObject" type="text" class="menu__item-input" />
                                   <button class="menu__button">Отправить</button>
@@ -184,7 +308,12 @@ function draw_line(_myMap, coords, color_1, color_2, add_1, add_2) {
     console.log(...coords, "COORDS");
     var firstAnimatedLine = new ymaps.AnimatedLine(
       [...coords[0]],
-      {},
+      {
+        hintContent: "дорога",
+        balloonContent: "4/10",
+        balloonContentHeader: "Загруженность дороги",
+        balloonContentFooter: "Дополнительная информация о дороге"
+      },
       {
         // Задаем цвет.
         strokeColor: `#${color_1}`,
@@ -196,7 +325,12 @@ function draw_line(_myMap, coords, color_1, color_2, add_1, add_2) {
     );
     var secondAnimatedLine = new ymaps.AnimatedLine(
       [...coords[1]],
-      {},
+      {
+        hintContent: "дорога",
+        balloonContent: "1/10",
+        balloonContentHeader: "Загруженность дороги",
+        balloonContentFooter: "Дополнительная информация о дороге"
+      },
       {
         strokeColor: `#${color_2}`,
         strokeWidth: 5
@@ -250,39 +384,5 @@ function draw_line(_myMap, coords, color_1, color_2, add_1, add_2) {
         preset: "islands#blackZooIcon"
       }
     );
-    // Функция анимации пути.
-    // function playAnimation() {
-    //   // Убираем вторую линию.
-    //   secondAnimatedLine.reset();
-    //   // Добавляем первую метку на карту.
-    //   _myMap.geoObjects.add(firstPoint);
-    //   // Анимируем первую линию.
-    //   firstAnimatedLine
-    //     .animate()
-    //     // После окончания анимации первой линии добавляем вторую метку на карту и анимируем вторую линию.
-    //     .then(() => {
-    //       _myMap.geoObjects.add(secondPoint);
-    //       return secondAnimatedLine.animate();
-    //     })
-    //     // После окончания анимации второй линии добавляем третью метку на карту.
-    //     .then(function() {
-    //       // _myMap.geoObjects.add(thirdPoint);
-    //       // Добавляем паузу после анимации.
-    //       return ymaps.vow.delay(null, 2000);
-    //     })
-    //     // После паузы перезапускаем анимацию.
-    //     .then(function() {
-    //       // Удаляем метки с карты.
-    //       _myMap.geoObjects.remove(firstPoint);
-    //       _myMap.geoObjects.remove(secondPoint);
-    //       // _myMap.geoObjects.remove(thirdPoint);
-    //       // Убираем вторую линию.
-    //       secondAnimatedLine.reset();
-    //       // Перезапускаем анимацию.
-    //       playAnimation();
-    //     });
-    // }
-    // Запускаем анимацию пути.
-    // playAnimation();
   }
 }
