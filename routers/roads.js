@@ -36,18 +36,18 @@ router.post("/", (req, res) => {
   });
   console.log("sssss1", pointsReturn[0][1]);
   console.log("sssss2", pointsReturn[1][1]);
-  // if (
-  //   pointsReturn[0][1] === pointsReturn[1][1] &&
-  //   pointsReturn[0][1] !== "FF0000"
-  // ) {
-  pointsReturn.push(nearest_road_arrp);
-  // } else if (pointsReturn[0][1] < pointsReturn[1][1]) {
-  //   console.log("1");
-  //   pointsReturn.push(nearest_road_arr[0]);
-  // } else if (pointsReturn[1][1] < pointsReturn[0][1]) {
-  //   console.log("2");
-  //   pointsReturn.push(nearest_road_arr[0]);
-  // }
+  if (
+    pointsReturn[0][1] === pointsReturn[1][1] &&
+    pointsReturn[0][1] !== "FF0000"
+  ) {
+    pointsReturn.push(nearest_road_arrp);
+  } else if (pointsReturn[0][1] < pointsReturn[1][1]) {
+    console.log("1");
+    pointsReturn.push(nearest_road_arr[0]);
+  } else if (pointsReturn[1][1] < pointsReturn[0][1]) {
+    console.log("2");
+    pointsReturn.push(nearest_road_arr[0]);
+  }
   res.json(pointsReturn);
 });
 
