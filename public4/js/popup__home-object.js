@@ -193,6 +193,9 @@ window.addEventListener("load", () => {
           .querySelector(".button-delete")
           .addEventListener("click", () => {
             myMap.geoObjects.removeAll();
+            if ($("#menu").css("display") == "flex") {
+              $("#menu").remove();
+            }
           });
         // Контекстное меню, позволяющее изменить параметры метки.
         // Вызывается при нажатии правой кнопкой мыши на метке.
